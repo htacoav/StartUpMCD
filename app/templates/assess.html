@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Will your startup survive?</title>
+<style>
+  :root { --bg:#0b1120; --card:#172033; --line:#2b3a55; --text:#e6edf7;
+          --muted:#8ea0bd; --good:#4ade80; --warn:#fbbf24; --bad:#f87171; --blue:#60a5fa; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.6 system-ui, sans-serif; }
+  .wrap { max-width:760px; margin:0 auto; padding:0 20px; }
+  header { padding:44px 0 28px; text-align:center; }
+  h1 { margin:0 0 10px; font-size:32px; }
+  .sub { color:var(--muted); font-size:16px; }
+  .step { margin:0 0 18px; padding:20px 22px 22px; background:var(--card);
+          border:1px solid var(--line); border-radius:14px; }
+  .step h2 { margin:0 0 4px; font-size:13px; text-transform:uppercase;
+             letter-spacing:.07em; color:var(--blue); }
+  .q { margin-top:20px; }
+  .q:first-of-type { margin-top:14px; }
+  .q p { margin:0 0 9px; font-weight:600; font-size:15px; }
+  .opts { display:flex; flex-direction:column; gap:7px; }
+  .opt { display:flex; align-items:center; gap:10px; padding:10px 13px; cursor:pointer;
+         background:var(--bg); border:1px solid var(--line); border-radius:9px;
+         font-size:14.5px; transition:border-color .15s, background .15s; }
+  .opt:hover { border-color:var(--blue); }
+  .opt input { accent-color:var(--blue); width:17px; height:17px; margin:0; cursor:pointer; }
+  .opt.sel { border-color:var(--blue); background:#1b2942; }
+  .row { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; }
+  label small { display:block; color:var(--muted); font-weight:400; font-size:13px;
+                margin-bottom:6px; }
+  input[type=number], select { width:100%; padding:10px 12px; background:var(--bg);
+        color:var(--text); border:1px solid var(--line); border-radius:9px; font-size:15px; }
+  input:focus, select:focus { outline:none; border-color:var(--blue); }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; }
+  .chip { padding:9px 15px; background:var(--bg); border:1px solid var(--line);
+          border-radius:99px; cursor:pointer; font-size:14px; user-select:none; }
+  .chip.sel { background:var(--blue); color:#0b1120; border-color:var(--blue); font-weight:600; }
+  button { width:100%; padding:16px; background:var(--blue); color:#0b1120; border:0;
+           border-radius:11px; font-size:17px; font-weight:700; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:wait; }
+  #out { margin-top:22px; padding:30px; border-radius:14px; border:1px solid var(--line);
+         background:var(--card); display:none; text-align:center; }
+  #out.show { display:block; }
+  .big { font-size:62px; font-weight:800; line-height:1; }
+  .verdict { font-size:17px; font-weight:600; margin-top:8px; }
+  .bar { height:14px; background:var(--bg); border-radius:99px; overflow:hidden; margin:20px 0 10px; }
+  .bar span { display:block; height:100%; transition:width .6s; }
+  .LOW{color:var(--good);} .MEDIUM{color:var(--warn);} .HIGH{color:var(--bad);}
+  .bLOW{background:var(--good);} .bMEDIUM{background:var(--warn);} .bHIGH{background:var(--bad);}
+  .meta { color:var(--muted); font-size:13.5px; }
+  details { margin-top:18px; text-align:left; }
+  summary { cursor:pointer; color:var(--blue); font-size:14px; }
+  pre { background:var(--bg); padding:14px; border-radius:9px; overflow:auto;
+        font-size:12.5px; color:var(--muted); }
+  footer { border-top:1px solid var(--line); padding:20px 0 40px; color:var(--muted);
+           font-size:13.5px; text-align:center; }
+  a { color:var(--blue); }
+  .warn { background:#7f1d1d; border:1px solid var(--bad); padding:16px; border-radius:10px; }
+</style>
+</head>
+<body>
+<header class="wrap">
+  <h1>Will your startup survive?</h1>
+  <div class="sub">Answer a few questions about your venture and find out.</div>
+</header>
+
+<main class="wrap">
+{% if not model %}
+  <div class="warn">No model is loaded. Run <code>python -m ml.train</code> and restart.</div>
+{% else %}
+<form id="form">
+
+  {% for seccion, preguntas in secciones.items() %}
+  <div class="step">
+    <h2>{{ seccion }}</h2>
+    {% for p in preguntas %}
+    <div class="q">
+      <p>{{ p.question }}</p>
+      <div class="opts">
+        {% for o in p.options %}
+        <label class="opt">
+          <input type="radio" name="{{ p.id }}" value="{{ loop.index0 }}"
+                 {% if loop.index0 == 0 %}checked{% endif %}>
+          <span>{{ o.label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+
+    {% if seccion == "Your team" %}
+    <div class="q">
+      <p>Which areas does your founding team cover?</p>
+      <div class="chips" id="skills">
+        {% for area in areas_equipo %}
+        <div class="chip" data-area="{{ area }}">{{ area }}</div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if seccion == "About you" %}
+    <div class="q">
+      <label><small>How many years have you worked in this industry?</small>
+        <input type="number" name="years_in_industry" min="0" max="40" step="0.5" value="4">
+      </label>
+    </div>
+    {% endif %}
+
+    {% if seccion == "Your market" %}
+    <div class="q">
+      <label><small>What sector are you in?</small>
+        <select name="industry">
+          {% for v in model.categorical_options.industry %}
+          <option value="{{ v }}">{{ v.replace('_',' ') }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  <div class="step">
+    <h2>Your money</h2>
+    <div class="q">
+      <p>These three numbers tell us how long you can keep going.</p>
+      <div class="row">
+        <label><small>Cash you have right now (USD)</small>
+          <input type="number" name="cash_available_usd" min="0" step="1000" value="50000"></label>
+        <label><small>How much you spend per month (USD)</small>
+          <input type="number" name="monthly_spend_usd" min="0" step="100" value="5000"></label>
+        <label><small>Total raised so far (USD)</small>
+          <input type="number" name="total_raised_usd" min="0" step="1000" value="100000"></label>
+        <label><small>How did you fund it?</small>
+          <select name="funding_path">
+            {% for v in model.categorical_options.funding_path %}
+            <option value="{{ v }}">{{ v.replace('_',' ') }}</option>
+            {% endfor %}
+          </select></label>
+      </div>
+    </div>
+  </div>
+
+  <button type="submit" id="send">See my result</button>
+</form>
+
+<div id="out">
+  <div class="big" id="pct"></div>
+  <div class="verdict" id="verdict"></div>
+  <div class="bar"><span id="bar"></span></div>
+  <div class="meta" id="meta"></div>
+  <details>
+    <summary>See the values used to calculate this</summary>
+    <pre id="derived"></pre>
+  </details>
+</div>
+{% endif %}
+</main>
+
+<footer class="wrap">
+  <a href="/expert">Technical view</a> &middot;
+  <a href="/docs">API docs</a> &middot;
+  <a href="/feature-groups">What predicts survival</a>
+</footer>
+
+<script>
+// Los chips de areas del equipo se encienden y apagan al hacer clic
+document.querySelectorAll("#skills .chip").forEach(chip => {
+  chip.addEventListener("click", () => chip.classList.toggle("sel"));
+});
+
+// Se resalta la opcion elegida de cada pregunta
+document.querySelectorAll(".opt input").forEach(radio => {
+  radio.addEventListener("change", () => {
+    document.getElementsByName(radio.name).forEach(otro =>
+      otro.closest(".opt").classList.remove("sel"));
+    radio.closest(".opt").classList.add("sel");
+  });
+  if (radio.checked) radio.closest(".opt").classList.add("sel");
+});
+
+const form = document.getElementById("form");
+if (form) form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const boton = document.getElementById("send");
+  boton.disabled = true; boton.textContent = "Calculating...";
+
+  const f = new FormData(form);
+  const datos = {};
+  // Las preguntas de opcion llegan como texto y el esquema espera enteros
+  for (const [k, v] of f.entries()) datos[k] = isNaN(v) ? v : parseFloat(v);
+  datos.team_skills = [...document.querySelectorAll("#skills .chip.sel")]
+                        .map(c => c.dataset.area);
+
+  try {
+    const r = await fetch("/assess", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(datos)
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(JSON.stringify(d.detail));
+
+    const pct = (d.survival_probability * 100).toFixed(0);
+    document.getElementById("pct").innerHTML = `<span class="${d.risk_level}">${pct}%</span>`;
+    document.getElementById("verdict").innerHTML =
+      `<span class="${d.risk_level}">chance of survival &middot; ${d.risk_level} RISK</span>`;
+    const bar = document.getElementById("bar");
+    bar.style.width = pct + "%"; bar.className = "b" + d.risk_level;
+    document.getElementById("meta").textContent =
+      `Runway ${d.derived_features.runway_months} months · model v${d.model_version}`;
+    document.getElementById("derived").textContent =
+      JSON.stringify(d.derived_features, null, 2);
+    document.getElementById("out").classList.add("show");
+    document.getElementById("out").scrollIntoView({behavior:"smooth", block:"center"});
+  } catch (err) {
+    document.getElementById("pct").textContent = "Error";
+    document.getElementById("verdict").textContent = err.message;
+    document.getElementById("out").classList.add("show");
+  } finally {
+    boton.disabled = false; boton.textContent = "See my result";
+  }
+});
+</script>
+</body>
+</html>

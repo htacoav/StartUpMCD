@@ -1,0 +1,12 @@
+data/
+tests/
+docs/
+notebooks/
+.git/
+.github/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+README.md

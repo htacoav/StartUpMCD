@@ -1,0 +1,25 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.egg-info/
+.pytest_cache/
+
+# --- Sistema y editor ---
+.DS_Store
+.vscode/
+
+# --- Datos ---
+# El dataset si se sube, son 6.6 MB y permiten clonar el repo y reentrenar sin
+# tener que buscar nada afuera.
+
+# --- Salidas del entrenamiento que no son el modelo ---
+mlruns/
+
+# --- Cuadernos ---
+.ipynb_checkpoints/
+
+# --- Archivos temporales de Word ---
+~$*

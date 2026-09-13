@@ -1,0 +1,31 @@
+column,type,description
+startup_id,string,Unique id
+industry,string,"Sector (tech_saas, ecommerce, fintech, healthtech, agriculture, ...)"
+founding_year,int,Year founded (2008-2021)
+macro_climate,float,CIRCUMSTANCE/LUCK: funding & market climate at founding (0-10)
+market_size_score,float,CIRCUMSTANCE: addressable market size (0-10)
+competition_intensity,float,CIRCUMSTANCE: competitive intensity (0-10)
+founder_prior_exits,int,"FOUNDER: 0 first-time, 1 prior venture, 2 prior SUCCESSFUL exit"
+prior_failures,int,FOUNDER: number of prior failed ventures
+domain_experience_years,float,FOUNDER: years of domain experience
+technical_cofounder,int,FOUNDER: 1 if a technical co-founder is present
+n_cofounders,int,Number of co-founders
+cofounder_conflict,float,TEAM: co-founder conflict level (0-10) — a top early-failure cause
+team_completeness,float,TEAM: how complete the founding team is (0-10)
+age_of_founder,int,Lead founder age
+funding_path,string,bootstrapped / angel / vc_seed / vc_series_a_plus
+total_raised_usd,float,Total capital raised (USD)
+monthly_burn_rate,float,Monthly cash burn (USD)
+runway_months,float,Runway at founding (months)
+product_market_fit_score,float,EXECUTION: product-market fit (0-10) — no fit is the #1 failure cause
+did_customer_validation,int,EXECUTION: 1 if validated demand before building
+premature_scaling,int,EXECUTION: 1 if scaled before product-market fit
+pivots,int,EXECUTION: number of pivots (1-2 tends to be best)
+unit_economics_score,float,EXECUTION: unit-economics health (0-10)
+marketing_effectiveness,float,EXECUTION: marketing effectiveness (0-10)
+weekly_hours,int,Founder weekly hours worked
+years_to_outcome,float,Years from founding to the outcome
+failure_reason,string,"Why it failed (no_market_need, ran_out_of_cash, team_conflict, outcompeted, ...) or survived"
+outcome,string,failed / still_operating / acquired / ipo
+survived_5y,int,1 if still operating at 5 years
+failed,int,TARGET (binary): 1 if the startup failed

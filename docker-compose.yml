@@ -1,0 +1,17 @@
+# Levanta el servicio:
+#   docker compose up -d --build      en local
+#   docker compose up -d --no-build   en el VPS, con la imagen ya cargada
+services:
+  api:
+    build: .
+    image: startup-survival-api:latest
+    container_name: startup-survival-api
+    restart: unless-stopped
+    ports:
+      # Solo escucha en 127.0.0.1, no en toda la red. Apache es el unico que le
+      # habla, y el que se encarga del dominio y del HTTPS. Es la misma
+      # convencion que usan los otros servicios del servidor.
+      - "127.0.0.1:8000:8000"
+    # El servidor tiene otros tres proyectos en produccion, asi que se le pone
+    # techo a este contenedor para que no les quite memoria.
+    mem_limit: 700m

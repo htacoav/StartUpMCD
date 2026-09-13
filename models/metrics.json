@@ -1,0 +1,227 @@
+{
+  "model_version": "1.0.0",
+  "model_name": "LogisticRegression",
+  "hyperparameters": {
+    "C": 0.1
+  },
+  "features": [
+    "macro_climate",
+    "market_size_score",
+    "competition_intensity",
+    "founder_prior_exits",
+    "domain_experience_years",
+    "cofounder_conflict",
+    "team_completeness",
+    "product_market_fit_score",
+    "did_customer_validation",
+    "premature_scaling",
+    "unit_economics_score",
+    "marketing_effectiveness",
+    "funding_path",
+    "total_raised_usd",
+    "monthly_burn_rate",
+    "runway_months",
+    "industry"
+  ],
+  "groups": {
+    "circumstance": [
+      "macro_climate",
+      "market_size_score",
+      "competition_intensity"
+    ],
+    "founder": [
+      "founder_prior_exits",
+      "domain_experience_years"
+    ],
+    "team": [
+      "cofounder_conflict",
+      "team_completeness"
+    ],
+    "execution": [
+      "product_market_fit_score",
+      "did_customer_validation",
+      "premature_scaling",
+      "unit_economics_score",
+      "marketing_effectiveness"
+    ],
+    "funding": [
+      "funding_path",
+      "total_raised_usd",
+      "monthly_burn_rate",
+      "runway_months"
+    ],
+    "context": [
+      "industry"
+    ]
+  },
+  "group_names": {
+    "circumstance": "Circumstance and luck",
+    "founder": "Founder background",
+    "team": "Founding team",
+    "execution": "Execution",
+    "funding": "Funding and cash",
+    "context": "Context"
+  },
+  "threshold": 0.64,
+  "trained_at": "2026-09-13T14:03:36+00:00",
+  "rows": 48000,
+  "failure_rate": 0.6580625,
+  "metrics": {
+    "roc_auc": 0.7469446871601615,
+    "pr_auc": 0.8455297428311102,
+    "accuracy": 0.6840625,
+    "balanced_accuracy": 0.6783000881780936,
+    "precision": 0.7976794778825236,
+    "recall": 0.6965331644768086,
+    "f1": 0.743682920645652,
+    "flagged_rate": 0.5745833333333333,
+    "true_negatives": 2167,
+    "false_positives": 1116,
+    "false_negatives": 1917,
+    "true_positives": 4400,
+    "cv_roc_auc": 0.7456185609206927,
+    "hyperparameters": {
+      "C": 0.1
+    },
+    "threshold": 0.64,
+    "seconds": 3.0
+  },
+  "group_study": {
+    "auc_con_todo": 0.7421569739797232,
+    "grupos": {
+      "circumstance": {
+        "nombre": "Circumstance and luck",
+        "variables": [
+          "macro_climate",
+          "market_size_score",
+          "competition_intensity"
+        ],
+        "auc_solo_este_grupo": 0.5974131661316848,
+        "auc_sin_este_grupo": 0.7234761601142905,
+        "cuanto_se_pierde_al_quitarlo": 0.018680813865432744
+      },
+      "founder": {
+        "nombre": "Founder background",
+        "variables": [
+          "founder_prior_exits",
+          "domain_experience_years"
+        ],
+        "auc_solo_este_grupo": 0.5430474439804864,
+        "auc_sin_este_grupo": 0.7382807928612343,
+        "cuanto_se_pierde_al_quitarlo": 0.003876181118488975
+      },
+      "team": {
+        "nombre": "Founding team",
+        "variables": [
+          "cofounder_conflict",
+          "team_completeness"
+        ],
+        "auc_solo_este_grupo": 0.5701759381284593,
+        "auc_sin_este_grupo": 0.7309826054280808,
+        "cuanto_se_pierde_al_quitarlo": 0.011174368551642444
+      },
+      "execution": {
+        "nombre": "Execution",
+        "variables": [
+          "product_market_fit_score",
+          "did_customer_validation",
+          "premature_scaling",
+          "unit_economics_score",
+          "marketing_effectiveness"
+        ],
+        "auc_solo_este_grupo": 0.6464846344596826,
+        "auc_sin_este_grupo": 0.697291119009277,
+        "cuanto_se_pierde_al_quitarlo": 0.04486585497044626
+      },
+      "funding": {
+        "nombre": "Funding and cash",
+        "variables": [
+          "funding_path",
+          "total_raised_usd",
+          "monthly_burn_rate",
+          "runway_months"
+        ],
+        "auc_solo_este_grupo": 0.6420209529897977,
+        "auc_sin_este_grupo": 0.695138815522334,
+        "cuanto_se_pierde_al_quitarlo": 0.047018158457389214
+      },
+      "context": {
+        "nombre": "Context",
+        "variables": [
+          "industry"
+        ],
+        "auc_solo_este_grupo": 0.5346877633812439,
+        "auc_sin_este_grupo": 0.7391684082969283,
+        "cuanto_se_pierde_al_quitarlo": 0.0029885656827949303
+      }
+    }
+  },
+  "all_models": {
+    "LogisticRegression": {
+      "roc_auc": 0.7469446871601615,
+      "pr_auc": 0.8455297428311102,
+      "accuracy": 0.6840625,
+      "balanced_accuracy": 0.6783000881780936,
+      "precision": 0.7976794778825236,
+      "recall": 0.6965331644768086,
+      "f1": 0.743682920645652,
+      "flagged_rate": 0.5745833333333333,
+      "true_negatives": 2167,
+      "false_positives": 1116,
+      "false_negatives": 1917,
+      "true_positives": 4400,
+      "cv_roc_auc": 0.7456185609206927,
+      "hyperparameters": {
+        "C": 0.1
+      },
+      "threshold": 0.64,
+      "seconds": 3.0
+    },
+    "RandomForest": {
+      "roc_auc": 0.730452726787118,
+      "pr_auc": 0.8336679869857978,
+      "accuracy": 0.67125,
+      "balanced_accuracy": 0.6692959364735831,
+      "precision": 0.7941559650102363,
+      "recall": 0.6754788665505778,
+      "f1": 0.7300256629597947,
+      "flagged_rate": 0.5596875,
+      "true_negatives": 2177,
+      "false_positives": 1106,
+      "false_negatives": 2050,
+      "true_positives": 4267,
+      "cv_roc_auc": 0.7303555974627465,
+      "hyperparameters": {
+        "n_estimators": 200,
+        "min_samples_leaf": 5,
+        "max_depth": null
+      },
+      "threshold": 0.64,
+      "seconds": 18.9
+    },
+    "HistGradientBoosting": {
+      "roc_auc": 0.7362812471806952,
+      "pr_auc": 0.8384761289152061,
+      "accuracy": 0.6720833333333334,
+      "balanced_accuracy": 0.6673689603948867,
+      "precision": 0.7906806090625573,
+      "recall": 0.6822858952034193,
+      "f1": 0.7324949014276003,
+      "flagged_rate": 0.5678125,
+      "true_negatives": 2142,
+      "false_positives": 1141,
+      "false_negatives": 2007,
+      "true_positives": 4310,
+      "cv_roc_auc": 0.7357675827177509,
+      "hyperparameters": {
+        "min_samples_leaf": 20,
+        "max_iter": 200,
+        "max_depth": 3,
+        "learning_rate": 0.05
+      },
+      "threshold": 0.64,
+      "seconds": 4.2
+    }
+  },
+  "training_seconds": 27.0
+}
