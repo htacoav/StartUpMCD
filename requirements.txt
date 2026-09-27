@@ -5,5 +5,5 @@ pydantic==2.12.4
 pandas==2.3.3
 scikit-learn==1.7.2
 joblib==1.5.2
-numpy==2.3.5
+numpy==2.5.3
 python-multipart==0.0.20
