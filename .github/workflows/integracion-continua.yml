@@ -46,7 +46,7 @@ jobs:
     name: Pruebas
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -72,7 +72,7 @@ jobs:
       contents: read
       packages: write      # hace falta para subir al registro de GitHub
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Hace falta para poder usar la cache de construccion: el driver que trae
       # Docker por omision no sabe exportarla y la construccion falla.
@@ -107,7 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: produccion
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Mientras el servidor no este configurado, este trabajo se salta en vez
       # de fallar. Asi el flujo queda en verde y se ve claro que falta.
