@@ -4,6 +4,18 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from ml import config
+
+
+@pytest.fixture(autouse=True, scope="session")
+def base_de_pruebas(tmp_path_factory):
+    """Manda la base de consultas a una carpeta temporal.
+
+    Sin esto, cada corrida de las pruebas escribiria consultas de mentira en la
+    base de verdad, y despues esas filas terminarian dentro del entrenamiento.
+    """
+    config.RUTA_CONSULTAS = tmp_path_factory.mktemp("consultas") / "consultas.db"
+    return config.RUTA_CONSULTAS
 
 
 @pytest.fixture(scope="session")
@@ -38,4 +50,5 @@ def startup():
         "monthly_burn_rate": 6300.0,
         "runway_months": 18.8,
         "industry": "tech_saas",
+        "departamento": "Lima",
     }

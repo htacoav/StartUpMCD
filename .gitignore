@@ -23,3 +23,38 @@ mlruns/
 
 # --- Archivos temporales de Word ---
 ~$*
+<<<<<<< HEAD
+=======
+
+# --- Mantenimiento ---
+# Reportes de cada corrida del pipeline. Se guardan como artefactos en GitHub
+# Actions, no en el repositorio.
+reportes/
+# Historial local de MLflow. En produccion vive en el servidor, no aca.
+mlflow.db
+mlruns/
+mlartifacts/
+
+# --- Simulacion ---
+# Los graficos, la bitacora y el resumen si se suben: son la evidencia. La base
+# y el modelo que genera no, porque se regeneran corriendo el script.
+simulacion/resultados/*.db
+simulacion/resultados/*.joblib
+simulacion/resultados/metrics_simuladas.json
+>>>>>>> 0817c7a (Agregado mantenimiento)
+
+# --- Cosas que se quedan en la maquina, no en el repositorio ---
+# La base de consultas: son datos de usuarios y en produccion vive en un
+# volumen del servidor, no aca.
+consultas/
+
+# Capturas de pantalla, que se vuelven a tomar cuando hagan falta.
+docs/capturas/
+
+# Los generadores de los documentos y de los diagramas. Los entregables son
+# los .docx, .pptx y .png; estos scripts son la herramienta para producirlos.
+docs/generar_*.js
+docs/generar_*.py
+
+# Salidas de cada corrida de la simulacion, que se regeneran con el script.
+simulacion/resultados/

@@ -20,6 +20,21 @@ def cargar_datos():
     return pd.read_csv(config.RUTA_DATOS)
 
 
+def completar_columnas(tabla):
+    """Agrega las variables que le falten a la tabla, en vez de reventar.
+
+    Hace falta cuando el modelo incorpora una variable nueva, como el
+    departamento, que las filas historicas no tienen. Esas filas quedan como
+    "unknown" y el modelo aprende de ellas lo que pueda; las nuevas si traen el
+    dato. Sin esto, agregar una variable obligaria a rehacer el dataset entero.
+    """
+    tabla = tabla.copy()
+    for columna in config.CARACTERISTICAS:
+        if columna not in tabla.columns:
+            tabla[columna] = "unknown" if columna in config.CATEGORICAS else 0
+    return tabla
+
+
 def preparar(tabla):
     """Separa las variables predictoras (X) de lo que se quiere predecir (y).
 
@@ -28,6 +43,8 @@ def preparar(tabla):
     fuga de informacion y siete no aportan nada al modelo.
     """
     y = tabla[config.OBJETIVO]
+
+    tabla = completar_columnas(tabla)
     X = tabla[config.CARACTERISTICAS].copy()
 
     # Las categoricas se pasan a texto por si vinieran vacias. Un formulario web

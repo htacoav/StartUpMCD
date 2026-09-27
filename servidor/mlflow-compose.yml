@@ -1,0 +1,51 @@
+# ==========================================
+# SERVIDOR MLFLOW
+#
+# Guarda el historial de entrenamientos y las versiones del modelo. El pipeline
+# de mantenimiento le reporta cada reentrenamiento, con sus metricas y su
+# artefacto, y desde su interfaz web se puede ver como fue cambiando el modelo.
+#
+# Levantar en el VPS:
+#   docker compose -f mlflow-compose.yml up -d
+#
+# Se usa la serie 2.x y no la 3.x por una razon medida, no por costumbre: la
+# 3.16 arranca ocupando 1572 MB y muere por falta de memoria si se le pone un
+# limite menor a 1 GB, mientras que la 2.22 hace lo mismo con 256 MB. Para las
+# funciones que este proyecto usa, que son el registro de corridas y el de
+# versiones del modelo, las dos sirven igual.
+#
+# Queda escuchando solo en 127.0.0.1, igual que la API. El proxy del servidor lo
+# publica en un subdominio con contrasena, porque MLflow no trae login propio.
+# ==========================================
+services:
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.22.2
+    container_name: mlflow
+    restart: unless-stopped
+    ports:
+      # El puerto de afuera se puede cambiar sin tocar el archivo. Hace falta en
+      # una Mac, donde el 5000 lo ocupa AirPlay:
+      #   PUERTO_MLFLOW=5001 docker compose -f mlflow-compose.yml up -d
+      - "127.0.0.1:${PUERTO_MLFLOW:-5000}:5000"
+    # --serve-artifacts hace que los modelos se suban AL servidor. Sin esa
+    # opcion, el cliente intentaria escribir en /mlflow/artefactos de su propia
+    # maquina, una ruta que solo existe dentro del contenedor, y fallaria.
+    #
+    # --workers 1 es importante: por omision MLflow levanta varios procesos y
+    # cada uno se lleva su propia memoria. Con uno solo alcanza de sobra para
+    # el uso que le damos, que es un reentrenamiento por semana.
+    volumes:
+      # Todo el historial vive en este volumen, asi sobrevive a los reinicios
+      - mlflow_datos:/mlflow
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --workers 1
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --serve-artifacts
+      --artifacts-destination /mlflow/artefactos
+    mem_limit: 400m
+
+volumes:
+  mlflow_datos:

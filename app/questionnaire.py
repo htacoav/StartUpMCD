@@ -231,6 +231,7 @@ def traducir(respuestas):
     variables["domain_experience_years"] = float(respuestas["years_in_industry"])
     variables["funding_path"] = respuestas["funding_path"]
     variables["industry"] = respuestas["industry"]
+    variables["departamento"] = respuestas.get("departamento", "unknown")
 
     # ---------- 5. Revision final ----------
     # Si faltara alguna variable, el modelo fallaria de una forma rara y dificil

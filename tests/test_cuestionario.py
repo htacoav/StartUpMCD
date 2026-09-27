@@ -92,7 +92,7 @@ def test_evaluacion_valida(cliente, respuestas):
     d = r.json()
     assert 0.0 <= d["survival_probability"] <= 1.0
     # Se devuelven las variables usadas para que el resultado sea auditable
-    assert len(d["derived_features"]) == 17
+    assert len(d["derived_features"]) == len(config.CARACTERISTICAS)
 
 
 def test_opcion_inexistente_es_rechazada(cliente, respuestas):

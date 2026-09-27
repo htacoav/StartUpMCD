@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 
 import joblib
 import numpy as np
+import sklearn
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
@@ -174,11 +175,23 @@ def auc_usando(columnas, X, y):
     return float(roc_auc_score(y_probar, probabilidades))
 
 
-def entrenar():
+def entrenar(guardar=True, datos=None):
+    """Entrena el modelo y devuelve el artefacto.
+
+    Con "datos" se le puede pasar una tabla ya armada en vez de que lea el CSV.
+    Lo usa el mantenimiento para entrenar con el dataset original mas las
+    consultas reales que ya tienen desenlace conocido.
+
+    Con guardar=False no escribe nada en models/. Lo usa el pipeline de
+    mantenimiento, que primero necesita comparar el modelo nuevo contra el que
+    esta en produccion y solo despues decide si lo reemplaza. Si guardara
+    siempre, un reentrenamiento malo pisaria el modelo bueno antes de que
+    alguien pudiera revisarlo.
+    """
     reloj = time.time()
 
     # ---------- PASO 1: cargar los datos ----------
-    tabla = cargar_datos()
+    tabla = cargar_datos() if datos is None else datos
     X, y = preparar(tabla)
     print(f"Datos: {len(X)} startups, {len(config.CARACTERISTICAS)} variables")
     print(f"Fracasaron: {y.sum()} ({100 * y.mean():.1f} por ciento)\n")
@@ -298,6 +311,13 @@ def entrenar():
               f"al quitarlo se pierde {auc_con_todo - auc_sin:+.4f}")
 
     # ---------- PASO 7: guardar ----------
+    # Para explicar cada prediccion con SHAP hace falta saber como es la startup
+    # "promedio" contra la que se compara. Se guarda el promedio de los datos de
+    # entrenamiento ya transformados, porque la carpeta data/ no entra a la
+    # imagen de Docker y la API no podria calcularlo en produccion.
+    datos_transformados = mejor_modelo.named_steps["preparacion"].transform(X_entrenar)
+    fondo_shap = datos_transformados.mean(axis=0).tolist()
+
     # El artefacto lleva el modelo y ademas todo lo que la aplicacion necesita
     # para armar sus formularios sola, sin escribir nada a mano.
     artefacto = {
@@ -316,20 +336,30 @@ def entrenar():
         "failure_rate": float(y.mean()),
         "metrics": resultados[mejor_nombre],
         "group_study": estudio,
+        "shap_background": fondo_shap,
+        # Con que version de scikit-learn se serializo. Un modelo guardado con
+        # una version y cargado con otra puede fallar recien al predecir, ya
+        # desplegado. Hay una prueba que compara este dato contra la version
+        # instalada y falla antes de que eso llegue a produccion.
+        "sklearn_version": sklearn.__version__,
     }
 
-    config.RUTA_MODELO.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(artefacto, config.RUTA_MODELO)
+    # El JSON con los numeros se arma siempre, porque el pipeline de
+    # mantenimiento lo necesita aunque no vaya a guardar nada.
 
-    # El JSON lleva solo los numeros, sin el modelo, para que el informe y el
-    # pipeline de mantenimiento puedan leerlo sin necesitar joblib.
     reporte = {}
     for clave in artefacto:
-        if clave not in ("pipeline", "categorical_options", "numeric_ranges"):
+        if clave not in ("pipeline", "categorical_options", "numeric_ranges", "shap_background"):
             reporte[clave] = artefacto[clave]
     reporte["all_models"] = resultados
     reporte["training_seconds"] = round(time.time() - reloj, 1)
 
+    if not guardar:
+        print(f"\nModelo NO guardado (guardar=False). Tiempo total: {reporte['training_seconds']}s")
+        return artefacto
+
+    config.RUTA_MODELO.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(artefacto, config.RUTA_MODELO)
     config.RUTA_METRICAS.write_text(json.dumps(reporte, indent=2), encoding="utf-8")
 
     print(f"\nModelo guardado en    {config.RUTA_MODELO}")

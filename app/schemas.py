@@ -59,8 +59,10 @@ class StartupRequest(BaseModel):
     runway_months: float = Field(..., ge=0, le=60, examples=[18.8],
                                  description="Months of runway at founding")
 
-    # --- Context: en que sector opera ---
+    # --- Context: en que sector opera y donde ---
     industry: str = Field(..., examples=["tech_saas"], description="Industry sector")
+    departamento: str = Field("unknown", examples=["Lima"],
+                              description="Region of Peru where the startup operates")
 
 
 class PredictionResponse(BaseModel):
@@ -79,6 +81,25 @@ class PredictionResponse(BaseModel):
     risk_level: Literal["LOW", "MEDIUM", "HIGH"] = Field(..., description="Human readable band")
     threshold: float = Field(..., description="Decision threshold used")
     model_version: str = Field(..., description="Version of the model that answered")
+    consultation_id: Optional[int] = Field(
+        None, description="Id of the stored consultation, used later to record the outcome")
+    explanation: Optional[dict] = Field(
+        None,
+        description="SHAP value of each input: how much it pushed survival up (positive) "
+                    "or down (negative), in log-odds. Null if the model is not linear.")
+
+
+class OutcomeRequest(BaseModel):
+    """El desenlace de un emprendimiento que ya fue evaluado.
+
+    Es el dato que convierte una consulta guardada en una fila que sirve para
+    entrenar. Lo marca la incubadora meses despues, cuando ya se sabe.
+    """
+
+    consultation_id: int = Field(..., ge=1, examples=[1],
+                                 description="Id returned when the startup was assessed")
+    failed: bool = Field(..., examples=[False],
+                         description="True if the startup shut down, False if it is still running")
 
 
 class HealthResponse(BaseModel):
@@ -134,6 +155,8 @@ class AssessmentRequest(BaseModel):
     fundraising_climate: int = Field(..., ge=0, le=3, examples=[2],
                                      description="0 very hard, 3 easy")
     industry: str = Field(..., examples=["tech_saas"], description="Industry sector")
+    departamento: str = Field("unknown", examples=["Lima"],
+                              description="Region of Peru where the startup operates")
 
     # Dinero
     total_raised_usd: float = Field(..., ge=0, examples=[100000.0],

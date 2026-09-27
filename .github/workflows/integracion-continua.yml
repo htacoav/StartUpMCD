@@ -1,0 +1,138 @@
+# ==========================================
+# INTEGRACION CONTINUA Y DESPLIEGUE
+#
+# Se dispara con cada push a main y con cada pull request.
+#
+# Son tres trabajos encadenados. Si uno falla, los siguientes no corren, asi
+# que nunca se despliega codigo que no paso las pruebas.
+#
+#   1. pruebas    revisa el estilo y corre las 35 pruebas
+#   2. imagen     construye la imagen Docker y la sube al registro de GitHub
+#   3. desplegar  la instala en el VPS y verifica que responda
+#
+# El paso 3 solo corre en push a main, nunca en un pull request.
+# ==========================================
+
+name: Integracion continua
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Este permite dispararlo a mano desde la pestaña Actions de GitHub
+  workflow_dispatch:
+
+# Si se hacen dos push seguidos, se cancela el primero para no desplegar una
+# version vieja encima de una nueva.
+concurrency:
+  group: integracion-continua
+  cancel-in-progress: true
+
+env:
+  IMAGEN: ghcr.io/${{ github.repository }}
+
+jobs:
+
+  # ---------- 1. PRUEBAS ----------
+  pruebas:
+    name: Pruebas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements-dev.txt
+
+      - name: Revisar el estilo del codigo
+        run: ruff check ml app tests
+
+      - name: Correr las pruebas
+        run: pytest
+
+  # ---------- 2. IMAGEN ----------
+  imagen:
+    name: Construir imagen
+    needs: pruebas
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write      # hace falta para subir al registro de GitHub
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Entrar al registro de GitHub
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construir y subir
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # Dos etiquetas: latest para el despliegue y el hash del commit para
+          # poder volver atras a una version exacta si algo sale mal.
+          tags: |
+            ${{ env.IMAGEN }}:latest
+            ${{ env.IMAGEN }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ---------- 3. DESPLIEGUE ----------
+  desplegar:
+    name: Desplegar al VPS
+    needs: imagen
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: produccion
+    steps:
+      - uses: actions/checkout@v4
+
+      # Mientras el servidor no este configurado, este trabajo se salta en vez
+      # de fallar. Asi el flujo queda en verde y se ve claro que falta.
+      - name: Revisar si el servidor esta configurado
+        id: config
+        run: |
+          if [ -z "${{ secrets.VPS_HOST }}" ]; then
+            echo "listo=no" >> $GITHUB_OUTPUT
+            echo "Faltan los secretos del servidor, se omite el despliegue."
+          else
+            echo "listo=si" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Preparar la llave SSH
+        if: steps.config.outputs.listo == 'si'
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Copiar los archivos de despliegue
+        if: steps.config.outputs.listo == 'si'
+        run: |
+          scp -i ~/.ssh/id_ed25519 docker-compose.prod.yml servidor/desplegar_remoto.sh \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/startup-survival/"
+
+      - name: Desplegar y verificar
+        if: steps.config.outputs.listo == 'si'
+        run: |
+          ssh -i ~/.ssh/id_ed25519 "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "cd /opt/startup-survival && bash desplegar_remoto.sh '${{ env.IMAGEN }}' '${{ github.sha }}'"
+
+      - name: Comprobar desde afuera
+        if: steps.config.outputs.listo == 'si'
+        run: |
+          # Se consulta el dominio publico, no localhost, para confirmar que el
+          # proxy tambien quedo bien.
+          curl -sf --retry 5 --retry-delay 3 "https://${{ secrets.VPS_DOMINIO }}/health" | tee respuesta.json
+          grep -q '"model_loaded":true' respuesta.json

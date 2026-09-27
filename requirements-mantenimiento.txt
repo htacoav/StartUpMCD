@@ -1,0 +1,9 @@
+# Dependencias del pipeline de mantenimiento.
+#
+# Van aparte a proposito: MLflow y Evidently solo se usan cuando se reentrena,
+# que ocurre dentro de GitHub Actions. Si estuvieran en requirements.txt se
+# instalarian tambien dentro de la imagen de la API y la harian crecer varios
+# cientos de megabytes sin ninguna necesidad.
+-r requirements.txt
+mlflow==2.22.2
+evidently==0.7.23

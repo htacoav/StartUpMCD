@@ -1,0 +1,52 @@
+# ==========================================
+# ACTUALIZACION AUTOMATICA DE DEPENDENCIAS
+#
+# Dependabot revisa cada semana si hay versiones nuevas y abre una solicitud de
+# incorporacion por cada una. Esa solicitud pasa por el flujo de integracion
+# continua como cualquier otro cambio: corre las 59 pruebas y construye la
+# imagen, pero no despliega.
+#
+# La gracia esta ahi. Si una version nueva rompe algo, se entera el flujo y no
+# produccion. Justamente la falla que motivo fijar las versiones fue una
+# discrepancia de scikit-learn que impedia cargar el modelo, y hay pruebas que
+# cargan el artefacto con la version instalada.
+# ==========================================
+
+version: 2
+updates:
+
+  # --- Paquetes de Python ---
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+    groups:
+      # Las dependencias de desarrollo se agrupan en una sola solicitud, para
+      # no llenar el repositorio de solicitudes menores.
+      desarrollo:
+        patterns:
+          - "pytest*"
+          - "ruff"
+          - "httpx"
+
+  # --- Acciones de GitHub usadas en los flujos ---
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "deps"
+
+  # --- Imagen base del contenedor ---
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "deps"

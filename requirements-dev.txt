@@ -1,4 +1,9 @@
--r requirements.txt
+# Todo lo que hace falta para desarrollar y para correr las pruebas.
+# La imagen de Docker NO usa este archivo, usa requirements.txt, que es mucho
+# mas chico. Aca entran tambien las dependencias del pipeline de mantenimiento
+# porque hay pruebas que las necesitan.
+-r requirements-mantenimiento.txt
 pytest==8.4.2
 httpx==0.28.1
 ruff==0.8.4
+pyyaml==6.0.2      # las pruebas leen los workflows de GitHub Actions

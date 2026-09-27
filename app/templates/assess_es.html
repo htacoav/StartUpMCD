@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Will your startup survive?</title>
+<title>¿Tu emprendimiento va a sobrevivir?</title>
 <style>
   :root { --bg:#0b1120; --card:#172033; --line:#2b3a55; --text:#e6edf7;
           --muted:#8ea0bd; --good:#4ade80; --warn:#fbbf24; --bad:#f87171; --blue:#60a5fa; }
@@ -13,6 +13,7 @@
   header { padding:44px 0 28px; text-align:center; }
   h1 { margin:0 0 10px; font-size:32px; }
   .sub { color:var(--muted); font-size:16px; }
+  .lang { position:absolute; top:16px; right:20px; font-size:14px; }
   .step { margin:0 0 18px; padding:20px 22px 22px; background:var(--card);
           border:1px solid var(--line); border-radius:14px; }
   .step h2 { margin:0 0 4px; font-size:13px; text-transform:uppercase;
@@ -58,7 +59,6 @@
            font-size:13.5px; text-align:center; }
   a { color:var(--blue); }
   .warn { background:#7f1d1d; border:1px solid var(--bad); padding:16px; border-radius:10px; }
-  .lang { position:absolute; top:16px; right:20px; font-size:14px; }
 
   /* La explicacion del resultado */
   .why { margin-top:26px; padding-top:22px; border-top:1px solid var(--line); text-align:left; }
@@ -80,30 +80,30 @@
 </style>
 </head>
 <body>
-<div class="lang"><a href="/es">Español</a></div>
+<div class="lang"><a href="/">English</a></div>
 <header class="wrap">
-  <h1>Will your startup survive?</h1>
-  <div class="sub">Answer a few questions about your venture and find out.</div>
+  <h1>¿Tu emprendimiento va a sobrevivir?</h1>
+  <div class="sub">Responde unas preguntas sobre tu emprendimiento y descúbrelo.</div>
 </header>
 
 <main class="wrap">
 {% if not model %}
-  <div class="warn">No model is loaded. Run <code>python -m ml.train</code> and restart.</div>
+  <div class="warn">No hay un modelo cargado. Corre <code>python -m ml.train</code> y reinicia.</div>
 {% else %}
 <form id="form">
 
   {% for seccion, preguntas in secciones.items() %}
   <div class="step">
-    <h2>{{ seccion }}</h2>
+    <h2>{{ es.SECCIONES[seccion] }}</h2>
     {% for p in preguntas %}
     <div class="q">
-      <p>{{ p.question }}</p>
+      <p>{{ es.PREGUNTAS[p.id].question }}</p>
       <div class="opts">
         {% for o in p.options %}
         <label class="opt">
           <input type="radio" name="{{ p.id }}" value="{{ loop.index0 }}"
                  {% if loop.index0 == 0 %}checked{% endif %}>
-          <span>{{ o.label }}</span>
+          <span>{{ es.PREGUNTAS[p.id].options[loop.index0] }}</span>
         </label>
         {% endfor %}
       </div>
@@ -112,10 +112,10 @@
 
     {% if seccion == "Your team" %}
     <div class="q">
-      <p>Which areas does your founding team cover?</p>
+      <p>¿Qué áreas cubre el equipo fundador?</p>
       <div class="chips" id="skills">
         {% for area in areas_equipo %}
-        <div class="chip" data-area="{{ area }}">{{ area }}</div>
+        <div class="chip" data-area="{{ area }}">{{ es.AREAS_DEL_EQUIPO[area] }}</div>
         {% endfor %}
       </div>
     </div>
@@ -123,7 +123,7 @@
 
     {% if seccion == "About you" %}
     <div class="q">
-      <label><small>How many years have you worked in this industry?</small>
+      <label><small>¿Cuántos años has trabajado en este rubro?</small>
         <input type="number" name="years_in_industry" min="0" max="40" step="0.5" value="4">
       </label>
     </div>
@@ -132,14 +132,14 @@
     {% if seccion == "Your market" %}
     <div class="q">
       <div class="row">
-        <label><small>What sector are you in?</small>
+        <label><small>¿En qué sector estás?</small>
           <select name="industry">
             {% for v in model.categorical_options.industry %}
-            <option value="{{ v }}">{{ v.replace('_',' ') }}</option>
+            <option value="{{ v }}">{{ es.SECTORES.get(v, v) }}</option>
             {% endfor %}
           </select>
         </label>
-        <label><small>Where do you operate?</small>
+        <label><small>¿En qué departamento operas?</small>
           <select name="departamento">
             {% for d in departamentos %}
             <option value="{{ d }}"{% if d == 'Lima' %} selected{% endif %}>{{ d }}</option>
@@ -153,27 +153,27 @@
   {% endfor %}
 
   <div class="step">
-    <h2>Your money</h2>
+    <h2>Tu dinero</h2>
     <div class="q">
-      <p>These three numbers tell us how long you can keep going.</p>
+      <p>Con estos números calculamos cuánto tiempo puedes seguir operando.</p>
       <div class="row">
-        <label><small>Cash you have right now (USD)</small>
+        <label><small>Dinero disponible hoy (USD)</small>
           <input type="number" name="cash_available_usd" min="0" step="1000" value="50000"></label>
-        <label><small>How much you spend per month (USD)</small>
+        <label><small>Cuánto gastas al mes (USD)</small>
           <input type="number" name="monthly_spend_usd" min="0" step="100" value="5000"></label>
-        <label><small>Total raised so far (USD)</small>
+        <label><small>Total levantado hasta ahora (USD)</small>
           <input type="number" name="total_raised_usd" min="0" step="1000" value="100000"></label>
-        <label><small>How did you fund it?</small>
+        <label><small>¿Cómo lo financiaste?</small>
           <select name="funding_path">
             {% for v in model.categorical_options.funding_path %}
-            <option value="{{ v }}">{{ v.replace('_',' ') }}</option>
+            <option value="{{ v }}">{{ es.FINANCIAMIENTO.get(v, v) }}</option>
             {% endfor %}
           </select></label>
       </div>
     </div>
   </div>
 
-  <button type="submit" id="send">See my result</button>
+  <button type="submit" id="send">Ver mi resultado</button>
 </form>
 
 <div id="out">
@@ -183,22 +183,22 @@
   <div class="meta" id="meta"></div>
 
   <div class="why" id="why">
-    <h3>Why this result?</h3>
-    <p class="nota">We compare your startup with an average one and measure how much each
-      answer pushes the result up or down. Bars show the relative weight of each factor.
-      Method: SHAP values.</p>
+    <h3>¿Por qué este resultado?</h3>
+    <p class="nota">Comparamos tu emprendimiento con uno promedio y medimos cuánto empuja
+      cada respuesta hacia arriba o hacia abajo. Las barras muestran el peso relativo de
+      cada factor. Método: valores SHAP.</p>
     <div class="cols">
-      <div class="ayuda"><h4>What helps you most</h4><div id="ayuda"></div></div>
-      <div class="riesgo"><h4>What puts you most at risk</h4><div id="riesgo"></div></div>
+      <div class="ayuda"><h4>Lo que más te ayuda</h4><div id="ayuda"></div></div>
+      <div class="riesgo"><h4>Lo que más te pone en riesgo</h4><div id="riesgo"></div></div>
     </div>
     <details>
-      <summary>See the contribution of all 17 inputs</summary>
+      <summary>Ver el aporte de las 17 variables</summary>
       <table class="todos" id="todos"></table>
     </details>
   </div>
 
   <details>
-    <summary>See the values used to calculate this</summary>
+    <summary>Ver los valores usados en el cálculo</summary>
     <pre id="derived"></pre>
   </details>
 </div>
@@ -206,13 +206,16 @@
 </main>
 
 <footer class="wrap">
-  <a href="/es">Versión en español</a> &middot;
-  <a href="/expert">Technical view</a> &middot;
-  <a href="/docs">API docs</a> &middot;
-  <a href="/feature-groups">What predicts survival</a>
+  <a href="/">English version</a> &middot;
+  <a href="/expert">Vista técnica</a> &middot;
+  <a href="/docs">Documentación de la API</a>
 </footer>
 
 <script>
+// Textos que vienen de app/textos_es.py
+const NOMBRES = {{ es.VARIABLES | tojson }};
+const RIESGO = {{ es.RIESGO | tojson }};
+
 // Los chips de areas del equipo se encienden y apagan al hacer clic
 document.querySelectorAll("#skills .chip").forEach(chip => {
   chip.addEventListener("click", () => chip.classList.toggle("sel"));
@@ -234,13 +237,13 @@ function dibujarFactores(idCaja, factores, maximo) {
   const caja = document.getElementById(idCaja);
   caja.innerHTML = "";
   if (factores.length === 0) {
-    caja.innerHTML = '<div class="vacio">None</div>';
+    caja.innerHTML = '<div class="vacio">Ninguno</div>';
     return;
   }
   factores.forEach(f => {
     const ancho = Math.round(100 * Math.abs(f.impact) / maximo);
     caja.innerHTML +=
-      `<div class="factor">${f.label}
+      `<div class="factor">${NOMBRES[f.feature]}
          <div class="linea"><span style="width:${ancho}%"></span></div></div>`;
   });
 }
@@ -254,12 +257,14 @@ function mostrarExplicacion(explicacion) {
   const maximo = Math.max(...factores.map(f => Math.abs(f.impact)));
 
   // Se muestran los 4 que mas pesan de cada lado
-  dibujarFactores("ayuda", factores.filter(f => f.impact > 0).slice(0, 4), maximo);
-  dibujarFactores("riesgo", factores.filter(f => f.impact < 0).slice(0, 4), maximo);
+  const ayudan = factores.filter(f => f.impact > 0).slice(0, 4);
+  const perjudican = factores.filter(f => f.impact < 0).slice(0, 4);
+  dibujarFactores("ayuda", ayudan, maximo);
+  dibujarFactores("riesgo", perjudican, maximo);
 
   // La tabla completa, con el numero SHAP de cada variable
   document.getElementById("todos").innerHTML = factores.map(f =>
-    `<tr><td>${f.label}</td><td>${f.impact > 0 ? "+" : ""}${f.impact.toFixed(3)}</td></tr>`
+    `<tr><td>${NOMBRES[f.feature]}</td><td>${f.impact > 0 ? "+" : ""}${f.impact.toFixed(3)}</td></tr>`
   ).join("");
 }
 
@@ -267,7 +272,7 @@ const form = document.getElementById("form");
 if (form) form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const boton = document.getElementById("send");
-  boton.disabled = true; boton.textContent = "Calculating...";
+  boton.disabled = true; boton.textContent = "Calculando...";
 
   const f = new FormData(form);
   const datos = {};
@@ -288,11 +293,11 @@ if (form) form.addEventListener("submit", async (e) => {
     const pct = (d.survival_probability * 100).toFixed(0);
     document.getElementById("pct").innerHTML = `<span class="${d.risk_level}">${pct}%</span>`;
     document.getElementById("verdict").innerHTML =
-      `<span class="${d.risk_level}">chance of survival &middot; ${d.risk_level} RISK</span>`;
+      `<span class="${d.risk_level}">probabilidad de sobrevivir &middot; ${RIESGO[d.risk_level]}</span>`;
     const bar = document.getElementById("bar");
     bar.style.width = pct + "%"; bar.className = "b" + d.risk_level;
     document.getElementById("meta").textContent =
-      `Runway ${d.derived_features.runway_months} months · model v${d.model_version}`;
+      `Caja para ${d.derived_features.runway_months} meses · modelo v${d.model_version}`;
     mostrarExplicacion(d.explanation);
     document.getElementById("derived").textContent =
       JSON.stringify(d.derived_features, null, 2);
@@ -304,7 +309,7 @@ if (form) form.addEventListener("submit", async (e) => {
     document.getElementById("why").style.display = "none";
     document.getElementById("out").classList.add("show");
   } finally {
-    boton.disabled = false; boton.textContent = "See my result";
+    boton.disabled = false; boton.textContent = "Ver mi resultado";
   }
 });
 </script>

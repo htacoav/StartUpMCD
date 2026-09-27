@@ -12,6 +12,11 @@ COPY ml/ ./ml/
 COPY app/ ./app/
 COPY models/ ./models/
 
+# Carpeta donde se guarda la base de consultas. Se crea aca y no en tiempo de
+# ejecucion para que quede con el dueno correcto: el contenedor corre como
+# apiuser y no podria crearla despues dentro de /app.
+RUN mkdir -p /app/consultas
+
 # Usuario sin privilegios, no conviene correr como root en produccion.
 RUN useradd --create-home apiuser && chown -R apiuser:apiuser /app
 USER apiuser

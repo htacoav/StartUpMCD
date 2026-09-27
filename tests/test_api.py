@@ -51,9 +51,17 @@ def test_industria_nunca_vista_no_rompe(cliente, startup):
 
 
 def test_prediccion_es_determinista(cliente, startup):
-    """La misma startup tiene que dar siempre el mismo resultado."""
+    """La misma startup tiene que dar siempre el mismo resultado.
+
+    El id de la consulta se saca de la comparacion a proposito: cada peticion
+    se guarda como una fila distinta, asi que ese numero cambia siempre. Lo que
+    tiene que ser identico es la prediccion.
+    """
     primera = cliente.post("/predict", json=startup).json()
     segunda = cliente.post("/predict", json=startup).json()
+
+    del primera["consultation_id"]
+    del segunda["consultation_id"]
     assert primera == segunda
 
 

@@ -78,7 +78,16 @@
         {% for campo in columnas %}
         <div>
           <label for="{{ campo }}">{{ campo.replace('_',' ') }}</label>
-          {% if campo in model.categorical_options %}
+          {% if campo == 'departamento' %}
+            {# La lista sale de config.py y no del modelo: al principio el modelo
+               solo conoce "unknown", porque el dataset original no traia esta
+               columna y las filas reales recien se estan acumulando. #}
+            <select id="departamento" name="departamento">
+              {% for d in departamentos %}
+              <option value="{{ d }}"{% if d == 'Lima' %} selected{% endif %}>{{ d }}</option>
+              {% endfor %}
+            </select>
+          {% elif campo in model.categorical_options %}
             <select id="{{ campo }}" name="{{ campo }}">
               {% for v in model.categorical_options[campo] %}
               <option value="{{ v }}">{{ v.replace('_',' ') }}</option>

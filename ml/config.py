@@ -3,6 +3,7 @@ Configuracion del proyecto. Todo lo que se puede querer cambiar esta aca,
 para no andar buscandolo por el codigo.
 """
 
+import os
 from pathlib import Path
 
 # --- Rutas ---------------------------------------------------------------
@@ -10,6 +11,16 @@ RAIZ = Path(__file__).resolve().parent.parent
 RUTA_DATOS = RAIZ / "data" / "startup_survival_master.csv"
 RUTA_MODELO = RAIZ / "models" / "model.joblib"
 RUTA_METRICAS = RAIZ / "models" / "metrics.json"
+
+# Base de datos donde la aplicacion guarda cada consulta que recibe. Vive en
+# una carpeta aparte porque en Docker se monta como volumen, para que sobreviva
+# cuando se reemplaza el contenedor.
+RUTA_CONSULTAS = Path(os.environ.get("RUTA_CONSULTAS", RAIZ / "consultas" / "consultas.db"))
+
+# Token que protege la vista de administracion, donde se marcan los desenlaces.
+# Si no se define, la vista queda abierta, lo que sirve para desarrollar pero
+# nunca para produccion.
+TOKEN_ADMIN = os.environ.get("TOKEN_ADMIN", "")
 
 SEMILLA = 42        # para que los resultados salgan iguales cada vez
 
@@ -56,7 +67,7 @@ GRUPOS = {
     "execution":    ["product_market_fit_score", "did_customer_validation",
                      "premature_scaling", "unit_economics_score", "marketing_effectiveness"],
     "funding":      ["funding_path", "total_raised_usd", "monthly_burn_rate", "runway_months"],
-    "context":      ["industry"],
+    "context":      ["industry", "departamento"],
 }
 
 # Nombre legible de cada grupo, para mostrarlo en la web y en el informe.
@@ -74,5 +85,19 @@ CARACTERISTICAS = []
 for columnas_del_grupo in GRUPOS.values():
     CARACTERISTICAS.extend(columnas_del_grupo)
 
-CATEGORICAS = ["industry", "funding_path"]
+CATEGORICAS = ["industry", "funding_path", "departamento"]
+
+# Los departamentos del Peru, mas Callao. Se usan para armar el formulario.
+#
+# Ojo con algo: el dataset original no trae esta columna, asi que las 48 000
+# filas historicas quedan como "unknown". Solo las consultas que recibe la
+# aplicacion traen el departamento de verdad. El modelo recien podra aprender
+# algo de esta variable cuando se acumulen suficientes consultas reales con su
+# desenlace conocido.
+DEPARTAMENTOS = [
+    "Amazonas", "Ancash", "Apurimac", "Arequipa", "Ayacucho", "Cajamarca",
+    "Callao", "Cusco", "Huancavelica", "Huanuco", "Ica", "Junin",
+    "La Libertad", "Lambayeque", "Lima", "Loreto", "Madre de Dios", "Moquegua",
+    "Pasco", "Piura", "Puno", "San Martin", "Tacna", "Tumbes", "Ucayali",
+]
 NUMERICAS = [c for c in CARACTERISTICAS if c not in CATEGORICAS]

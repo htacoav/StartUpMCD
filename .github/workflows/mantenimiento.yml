@@ -1,0 +1,136 @@
+# ==========================================
+# MANTENIMIENTO AUTOMATICO DEL MODELO
+#
+# Corre solo todos los lunes a las 6 de la manana hora de Peru, y tambien se
+# puede disparar a mano desde la pestaña Actions.
+#
+# Que hace, en orden:
+#   1. revisa si los datos nuevos cambiaron respecto de los del entrenamiento
+#   2. entrena un modelo candidato sin tocar el que esta en produccion
+#   3. lo compara y decide si lo reemplaza
+#   4. registra la corrida y el modelo en MLflow
+#   5. si el modelo gano, lo commitea, y ese commit dispara el despliegue
+#   6. si hubo deriva o el modelo empeoro, abre un issue para que alguien mire
+#
+# El punto 5 es el que cierra el circulo: el mantenimiento no despliega por su
+# cuenta, empuja un commit y deja que la integracion continua haga su trabajo,
+# con sus pruebas y su vuelta atras incluidas.
+# ==========================================
+
+name: Mantenimiento del modelo
+
+on:
+  schedule:
+    # 11:00 UTC son las 6:00 en Peru. GitHub usa siempre UTC.
+    - cron: "0 11 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write     # para poder commitear el modelo nuevo
+  issues: write       # para poder abrir el issue de aviso
+
+jobs:
+  mantenimiento:
+    name: Reentrenar y evaluar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements-mantenimiento.txt
+
+      - name: Correr el pipeline
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        run: python -m ml.mantenimiento
+
+      - name: Resumen en la pagina del workflow
+        run: |
+          python - <<'PY' >> $GITHUB_STEP_SUMMARY
+          import json
+          r = json.load(open("reportes/mantenimiento.json"))
+          print("## Mantenimiento del modelo\n")
+          print(f"- Fecha: {r['fecha']}")
+          print(f"- Filas nuevas revisadas: {r['filas_nuevas']} ({r['origen_de_los_datos']})")
+          print(f"- Columnas con deriva: {r['deriva']['columnas_con_deriva']} "
+                f"({100*r['deriva']['proporcion']:.1f} por ciento)")
+          print(f"- AUC del candidato: {r['candidato']['roc_auc']:.4f}")
+          print(f"- AUC en produccion: {r['produccion_anterior']}")
+          print(f"- Promovido: {'si' if r['promovido'] else 'no'}")
+          print(f"- Motivo: {r['motivo']}")
+          PY
+
+      - name: Guardar los reportes
+        uses: actions/upload-artifact@v4
+        with:
+          name: reportes-mantenimiento
+          path: reportes/
+          retention-days: 90
+
+      - name: Leer la decision
+        id: decision
+        run: |
+          python - <<'PY' >> $GITHUB_OUTPUT
+          import json
+          r = json.load(open("reportes/mantenimiento.json"))
+          print(f"promovido={str(r['promovido']).lower()}")
+          print(f"deriva={str(r['deriva']['hay_deriva']).lower()}")
+          print(f"motivo={r['motivo']}")
+          PY
+
+      # ---------- Si el modelo mejoro, se commitea y eso dispara el despliegue ----------
+      - name: Publicar el modelo nuevo
+        if: steps.decision.outputs.promovido == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add models/model.joblib models/metrics.json
+          git commit -m "Mantenimiento automatico: modelo reentrenado
+
+          ${{ steps.decision.outputs.motivo }}"
+          git push
+
+      # ---------- Si algo amerita revision humana, se abre un issue ----------
+      - name: Avisar que hay que revisar
+        if: steps.decision.outputs.promovido == 'false' || steps.decision.outputs.deriva == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const r = JSON.parse(fs.readFileSync('reportes/mantenimiento.json', 'utf8'));
+
+            const cuerpo = [
+              '## Resultado del mantenimiento automatico',
+              '',
+              `Fecha: ${r.fecha}`,
+              '',
+              '### Deriva de datos',
+              `- Columnas que cambiaron: ${r.deriva.columnas_con_deriva}`,
+              `- Proporcion: ${(100 * r.deriva.proporcion).toFixed(1)} por ciento`,
+              `- Alerta de deriva: ${r.deriva.hay_deriva ? 'SI' : 'no'}`,
+              '',
+              '### Modelo candidato',
+              `- AUC: ${r.candidato.roc_auc.toFixed(4)}`,
+              `- Exactitud balanceada: ${r.candidato.balanced_accuracy.toFixed(4)}`,
+              `- Proporcion senalada: ${(100 * r.candidato.flagged_rate).toFixed(1)} por ciento`,
+              `- AUC del modelo en produccion: ${r.produccion_anterior}`,
+              '',
+              '### Decision',
+              `- Promovido: ${r.promovido ? 'si' : 'no'}`,
+              `- Motivo: ${r.motivo}`,
+              '',
+              'El reporte de deriva de Evidently esta en los artefactos de esta corrida.',
+            ].join('\n');
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Mantenimiento ${new Date().toISOString().slice(0, 10)}: revisar el modelo`,
+              body: cuerpo,
+              labels: ['mantenimiento'],
+            });

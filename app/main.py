@@ -3,12 +3,13 @@
 # Levantar:  python -m uvicorn app.main:app --reload --port 8000
 #
 # Tiene tres tipos de rutas:
-#   - las paginas web que ve la gente        /  y  /expert
+#   - las paginas web que ve la gente        /, /es  y  /expert
 #   - las que calculan la prediccion         /assess  y  /predict
 #   - las que sirven para monitorear         /health, /model-info, /feature-groups
 #
 # Todo lo que se ve en pantalla va en ingles, que es lo que pide la rubrica.
-# Los comentarios van en espanol.
+# La pagina /es es una version adicional del cuestionario en espanol, pero usa
+# la misma API en ingles. Los comentarios van en espanol.
 # ==========================================
 
 from pathlib import Path
@@ -19,9 +20,11 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from app import almacen, textos_es
+from app.explicacion import explicar
 from app.questionnaire import AREAS_DEL_EQUIPO, secciones, traducir
 from app.schemas import AssessmentRequest, AssessmentResponse, HealthResponse
-from app.schemas import PredictionResponse, StartupRequest
+from app.schemas import OutcomeRequest, PredictionResponse, StartupRequest
 from ml import config
 
 VERSION_API = "1.0.0"
@@ -83,17 +86,41 @@ def calcular(variables):
 
     # predict_proba devuelve dos numeros: la probabilidad de sobrevivir y la de
     # fracasar. La columna 1 es la de fracasar, que es lo que el modelo predice.
-    probabilidad_de_fracaso = float(artefacto["pipeline"].predict_proba(fila)[0][1])
+    # Se redondea antes de comparar contra el umbral, no despues. Si no, la
+    # respuesta puede contradecirse: informar una probabilidad de 0.64 con un
+    # umbral de 0.64 y a la vez decir que no esta en riesgo, porque por dentro
+    # el numero era 0.6399.
+    probabilidad_de_fracaso = round(float(artefacto["pipeline"].predict_proba(fila)[0][1]), 4)
     umbral = artefacto["threshold"]
 
     return {
         "survival_probability": round(1 - probabilidad_de_fracaso, 4),
-        "failure_probability": round(probabilidad_de_fracaso, 4),
+        "failure_probability": probabilidad_de_fracaso,
         "at_risk": probabilidad_de_fracaso >= umbral,
         "risk_level": nivel_de_riesgo(probabilidad_de_fracaso, umbral),
         "threshold": umbral,
         "model_version": artefacto["model_version"],
+        # Por que salio ese resultado: cuanto empujo cada respuesta
+        "explanation": explicar(artefacto, fila),
     }
+
+
+def guardar_sin_romper(variables, resultado, origen):
+    """Guarda la consulta, y si no puede, avisa en el registro y sigue.
+
+    Almacenar es secundario. Lo principal es que el usuario reciba su
+    resultado, asi que un problema de disco, de permisos o de base bloqueada no
+    puede tumbar la prediccion. Sin esta proteccion, un volumen mal montado
+    convierte toda la aplicacion en un error 500, que es exactamente lo que
+    paso en produccion la primera vez que se desplego con almacenamiento.
+
+    Devuelve None cuando no se pudo guardar, y la respuesta lo informa asi.
+    """
+    try:
+        return almacen.guardar_consulta(variables, resultado, origen)
+    except Exception as error:
+        print(f"AVISO: no se pudo guardar la consulta ({error})")
+        return None
 
 
 def nivel_de_riesgo(probabilidad_de_fracaso, umbral):
@@ -181,6 +208,11 @@ def assess(respuestas: AssessmentRequest):
     variables = traducir(respuestas.model_dump())
     resultado = calcular(variables)
 
+    # La consulta se guarda para dos cosas: medir deriva de datos con casos
+    # reales, y poder entrenar con ella el dia que se sepa como termino ese
+    # emprendimiento. Ver app/almacen.py.
+    resultado["consultation_id"] = guardar_sin_romper(variables, resultado, "questionnaire")
+
     # Se devuelven tambien las variables para que el usuario pueda ver con que
     # numeros se calculo su resultado. Sin esto seria una caja negra.
     resultado["derived_features"] = variables
@@ -197,6 +229,7 @@ def predict(startup: StartupRequest):
     """
     variables = startup.model_dump()
     resultado = calcular(variables)
+    resultado["consultation_id"] = guardar_sin_romper(variables, resultado, "expert")
 
     return PredictionResponse(**resultado)
 
@@ -221,6 +254,53 @@ def form_options():
 
 
 # ==========================================
+# SEGUIMIENTO DE LOS EMPRENDIMIENTOS
+#
+# Aca esta la parte que hace posible reentrenar con datos reales. Cada consulta
+# queda guardada sin desenlace, y meses despues alguien de la incubadora marca
+# si ese emprendimiento cerro o sigue operando. Recien ahi esa fila sirve para
+# entrenar, porque recien ahi tiene la respuesta correcta.
+# ==========================================
+
+def revisar_token(token):
+    """Corta la peticion si el token no coincide.
+
+    Estas rutas exponen datos de los usuarios y permiten modificar registros,
+    asi que no pueden quedar abiertas en produccion. Si TOKEN_ADMIN no esta
+    definido, no se exige nada, lo que sirve para desarrollar en local.
+    """
+    if not config.TOKEN_ADMIN:
+        return
+    if token != config.TOKEN_ADMIN:
+        raise HTTPException(status_code=401, detail="Invalid or missing token")
+
+
+@app.post("/outcome", tags=["follow-up"])
+def outcome(datos: OutcomeRequest, token: str = ""):
+    """Marca como termino un emprendimiento que ya habia sido evaluado."""
+    revisar_token(token)
+
+    if not almacen.marcar_desenlace(datos.consultation_id, datos.failed):
+        raise HTTPException(status_code=404, detail="Consultation not found")
+
+    return {"consultation_id": datos.consultation_id, "failed": datos.failed, "saved": True}
+
+
+@app.get("/consultations", tags=["follow-up"])
+def consultations(token: str = "", pending_only: bool = False, limit: int = 200):
+    """Las consultas guardadas.
+
+    La usa el pipeline de mantenimiento para bajar los datos reales desde el
+    servidor, porque el reentrenamiento corre en GitHub Actions y no tiene
+    acceso al disco del servidor.
+    """
+    revisar_token(token)
+
+    return {"counts": almacen.contar(),
+            "consultations": almacen.listar(solo_sin_desenlace=pending_only, limite=limit)}
+
+
+# ==========================================
 # PAGINAS WEB
 # ==========================================
 
@@ -231,12 +311,44 @@ def home(request: Request):
         "model": cargar_artefacto(),
         "secciones": secciones(),
         "areas_equipo": AREAS_DEL_EQUIPO,
+        "departamentos": config.DEPARTAMENTOS,
     }
     return PLANTILLAS.TemplateResponse(request=request, name="assess.html", context=contexto)
+
+
+@app.get("/es", response_class=HTMLResponse, tags=["web"])
+def home_es(request: Request):
+    """El mismo cuestionario pero con los textos en espanol.
+
+    Las preguntas, los ids y los valores son los de la version en ingles. Lo
+    unico que cambia es lo que se lee en pantalla, que sale de textos_es.py.
+    """
+    contexto = {
+        "model": cargar_artefacto(),
+        "secciones": secciones(),
+        "areas_equipo": AREAS_DEL_EQUIPO,
+        "departamentos": config.DEPARTAMENTOS,
+        "es": textos_es,
+    }
+    return PLANTILLAS.TemplateResponse(request=request, name="assess_es.html", context=contexto)
+
+
+@app.get("/admin", response_class=HTMLResponse, tags=["web"])
+def admin(request: Request, token: str = ""):
+    """La vista donde se marca el desenlace de cada emprendimiento evaluado."""
+    revisar_token(token)
+
+    contexto = {
+        "model": cargar_artefacto(),
+        "consultas": almacen.listar(solo_sin_desenlace=True, limite=100),
+        "conteo": almacen.contar(),
+        "token": token,
+    }
+    return PLANTILLAS.TemplateResponse(request=request, name="admin.html", context=contexto)
 
 
 @app.get("/expert", response_class=HTMLResponse, tags=["web"])
 def expert(request: Request):
     """La vista tecnica, con los 17 valores numericos directos."""
-    contexto = {"model": cargar_artefacto()}
+    contexto = {"model": cargar_artefacto(), "departamentos": config.DEPARTAMENTOS}
     return PLANTILLAS.TemplateResponse(request=request, name="index.html", context=contexto)

@@ -75,6 +75,28 @@ def test_las_variables_coinciden_con_los_grupos(artefacto):
     assert sorted(del_grupo) == sorted(artefacto["features"])
 
 
+def test_el_modelo_se_entreno_con_la_scikit_learn_instalada(artefacto):
+    """La version con la que se guardo el modelo tiene que ser la instalada.
+
+    Esto no es formalismo. En produccion, un modelo serializado con la version
+    1.9.1 y cargado con la 1.7.2 cargaba sin quejarse, respondia bien en
+    /health y en /model-info, y recien reventaba al predecir, con un error que
+    no decia nada del problema real. Toda la aplicacion devolvia 500.
+
+    La prueba corre en la integracion continua, donde se instala exactamente lo
+    que declara requirements.txt, asi que detecta el desajuste antes de que la
+    imagen llegue al servidor.
+    """
+    import sklearn
+
+    assert "sklearn_version" in artefacto, (
+        "el artefacto no dice con que version se entreno, hay que reentrenar")
+    assert artefacto["sklearn_version"] == sklearn.__version__, (
+        f"el modelo se entreno con scikit-learn {artefacto['sklearn_version']} "
+        f"y aqui esta instalada la {sklearn.__version__}. Reentrena con la "
+        f"version que declara requirements.txt.")
+
+
 def test_el_pipeline_predice_sobre_una_fila(artefacto):
     """El modelo acepta una sola fila, que es como le llegan los datos en produccion."""
     fila = {}

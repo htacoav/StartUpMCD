@@ -101,7 +101,7 @@ documento, y los numeros siempre coinciden.
 
 ### Sin Docker, para desarrollar
 
-    python -m pytest                                    # 28 pruebas
+    python -m pytest                                    # 59 pruebas
     python -m ml.train                                  # reentrenar, unos 27 s
     python -m uvicorn app.main:app --reload --port 8000
 
@@ -117,13 +117,15 @@ escalamiento prematuro. Devuelve 1.5 por ciento, riesgo HIGH.
 
 | Carpeta | Que hay |
 |---|---|
-| ml/ | configuracion, carga de datos y entrenamiento |
-| app/ | la API FastAPI y la pagina web |
-| tests/ | 28 pruebas con pytest |
+| ml/ | configuracion, datos, entrenamiento, deriva y mantenimiento |
+| app/ | la API FastAPI y las tres paginas web |
+| tests/ | 59 pruebas con pytest |
 | models/ | el modelo entrenado y sus metricas |
-| data/ | el dataset, no se sube a GitHub |
-| docs/ | el informe y sus figuras |
-| notebooks/ | la exploracion de datos |
+| data/ | el dataset y su diccionario |
+| docs/ | los informes, la presentacion y las figuras |
+| notebooks/ | la exploracion y el entrenamiento paso a paso |
+| .github/workflows/ | integracion continua y mantenimiento automatico |
+| servidor/ | scripts y compose para el VPS |
 
 ## Las dos vistas
 
@@ -158,7 +160,9 @@ aprendido, y como tal se declara en el informe. El endpoint /assess devuelve las
 
 | Ruta | Que hace |
 |---|---|
-| / | el cuestionario para emprendedores |
+| / | el cuestionario para emprendedores, en ingles |
+| /admin | seguimiento: se marca como termino cada emprendimiento evaluado |
+| /es | el mismo cuestionario en espanol |
 | /expert | la vista tecnica con los 17 valores numericos |
 | /assess | evalua desde las respuestas del cuestionario |
 | /questionnaire | las preguntas, para armar la pagina |
@@ -175,3 +179,122 @@ salen del cuaderno notebooks/exploracion.ipynb, que las guarda en docs/figuras/.
 reentrena el modelo, basta con volver a correr el cuaderno para tener las figuras al dia.
 
 La presentacion de la Unidad I tambien esta en docs/.
+
+## Integracion continua y mantenimiento
+
+Son dos flujos automaticos, los dos en .github/workflows/.
+
+### Integracion continua
+
+Se dispara con cada push a main y con cada pull request. Tiene tres trabajos
+encadenados: si uno falla, los siguientes no corren.
+
+| Trabajo | Que hace |
+|---|---|
+| pruebas | revisa el estilo con ruff y corre las 59 pruebas |
+| imagen | construye la imagen Docker y la sube a ghcr.io |
+| desplegar | la instala en el VPS y comprueba que responda |
+
+El despliegue usa servidor/desplegar_remoto.sh, que antes de cambiar nada anota
+que imagen estaba corriendo. Si la version nueva no responde en 60 segundos,
+vuelve sola a la anterior.
+
+### Mantenimiento del modelo
+
+Corre todos los lunes a las 6 de la manana, y tambien se puede disparar a mano.
+
+    python -m ml.mantenimiento      # el mismo pipeline, en local
+
+Los pasos son: revisar si los datos nuevos cambiaron respecto de los del
+entrenamiento, entrenar un candidato sin tocar el modelo de produccion,
+compararlo, registrar todo en MLflow y decidir.
+
+El candidato solo reemplaza al que esta en produccion si mejora el AUC en al
+menos 0.002 y ademas pasa los minimos absolutos: AUC de 0.70, exactitud
+balanceada de 0.65 y menos del 80 por ciento de startups senaladas. Si no pasa,
+o si hay deriva de datos, se abre un issue en vez de desplegar.
+
+Cuando el modelo si mejora, el flujo lo commitea, y ese commit dispara la
+integracion continua. O sea que el mantenimiento no despliega por su cuenta:
+pasa por las mismas pruebas y la misma vuelta atras que cualquier otro cambio.
+
+### Secretos que hacen falta en GitHub
+
+| Secreto | Para que |
+|---|---|
+| VPS_HOST | la IP del servidor |
+| VPS_USER | el usuario con el que entra |
+| VPS_SSH_KEY | la llave privada del despliegue |
+| VPS_DOMINIO | el dominio publico, para la comprobacion final |
+| MLFLOW_TRACKING_URI | la direccion del servidor MLflow |
+
+## De donde salen los datos para reentrenar
+
+Cada evaluacion se guarda en una base SQLite, que vive en un volumen de Docker
+para que sobreviva a los despliegues. Pero una evaluacion guardada todavia no
+sirve para entrenar: tiene las 17 variables, no tiene el desenlace. Eso se sabe
+uno o dos anios despues.
+
+Por eso existe la vista /admin, donde la incubadora marca si cada emprendimiento
+cerro o sigue operando. Recien ahi esa fila sirve para entrenar.
+
+| Ruta | Que hace |
+|---|---|
+| /admin | la vista donde se marcan los desenlaces |
+| /outcome | registra el desenlace de una evaluacion |
+| /consultations | devuelve las evaluaciones guardadas, la usa el pipeline |
+
+Las tres se protegen con la variable TOKEN_ADMIN. Si no se define, quedan
+abiertas, lo que sirve para desarrollar pero nunca para produccion.
+
+El pipeline busca los datos nuevos en cuatro lugares, en este orden: la API de
+produccion, la base local, un archivo dejado a mano, y por ultimo una
+simulacion. Y aplica dos minimos: 100 evaluaciones para medir deriva y 500 con
+desenlace conocido para sumarlas al entrenamiento.
+
+El primer minimo salio de probarlo: con 4 evaluaciones reales, Evidently
+reporto deriva en las 17 columnas, que era falso. Sin ese piso, el flujo abriria
+una alarma todas las semanas durante los primeros meses.
+
+## La simulacion de dos anios
+
+    python -m simulacion.simular_dos_anios
+
+Simula 24 meses de operacion: 3500 emprendedores responden el mes 0, la
+incubadora completa los desenlaces a los 10 meses, siguen llegando 200 por mes,
+y el mantenimiento corre en los meses 10, 12, 18 y 24. Deja los graficos y la
+bitacora en simulacion/resultados/.
+
+Trabaja sobre copias aisladas del modelo y de la base, asi que no toca nada de
+produccion.
+
+Las caracteristicas salen de filas reales del dataset. Lo simulado es el
+departamento, el desenlace y la deriva del tiempo, cada uno con una regla
+explicita escrita en el codigo. El desenlace NO se genera con el modelo: si se
+hiciera asi, el modelo acertaria por construccion.
+
+### Que encontro
+
+Promovio un modelo nuevo en 3 de las 4 corridas. Sobre las consultas reales
+apartadas, el AUC paso de 0.6518 a 0.6746 en la primera. En el mes 12 el
+candidato salio peor que el vigente (0.6622 contra 0.6644) y la puerta lo
+rechazo, que es lo que tiene que pasar.
+
+Las dos cifras salen del subconjunto que el pipeline aparta y no usa para
+entrenar. Una version anterior de la simulacion las calculaba sobre todas las
+consultas etiquetadas, incluidas las que el candidato acababa de ver, y por eso
+informaba mejoras mas grandes que las reales.
+
+Pero lo que mas sirvio fueron los dos errores que destapo, que ninguna prueba
+unitaria habria encontrado porque solo aparecen con el tiempo:
+
+La puerta de calidad comparaba sobre el dataset completo. Asi nunca promovio
+nada en dos anios: el candidato daba 0.7431 contra 0.7469. Sobre las consultas
+reales ese mismo candidato daba 0.6650 contra 0.6484, o sea 0.0166 mejor. Las
+48 000 filas historicas tapaban la señal de unos pocos miles de casos reales.
+Ahora la comparacion se hace sobre consultas reales apartadas.
+
+La alerta de deriva solo miraba la proporcion de columnas. La deriva simulada
+movio 2 de 18 columnas, o sea 11 por ciento, y nunca aviso, aunque eran el
+clima macroeconomico y el gasto mensual, dos de las cinco variables mas
+importantes. Ahora tambien avisa si se mueve cualquiera de esas cinco.
