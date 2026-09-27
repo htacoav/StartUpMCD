@@ -6,4 +6,4 @@
 pytest==8.4.2
 httpx==0.28.1
 ruff==0.8.4
-pyyaml==6.0.2      # las pruebas leen los workflows de GitHub Actions
+pyyaml==6.0.3      # las pruebas leen los workflows de GitHub Actions
