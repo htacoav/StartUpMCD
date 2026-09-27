@@ -23,10 +23,14 @@ on:
   # Este permite dispararlo a mano desde la pestaña Actions de GitHub
   workflow_dispatch:
 
-# Si se hacen dos push seguidos, se cancela el primero para no desplegar una
-# version vieja encima de una nueva.
+# Si se hacen dos push seguidos sobre la MISMA rama, se cancela el primero para
+# no desplegar una version vieja encima de una nueva.
+#
+# El nombre del grupo lleva la rama a proposito. Con un nombre fijo, cada
+# solicitud de incorporacion cancelaba a las demas y tambien a la de main, que
+# es lo que paso la primera vez que Dependabot abrio ocho solicitudes juntas.
 concurrency:
-  group: integracion-continua
+  group: integracion-continua-${{ github.ref }}
   cancel-in-progress: true
 
 env:
