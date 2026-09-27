@@ -66,7 +66,7 @@ jobs:
           PY
 
       - name: Guardar los reportes
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reportes-mantenimiento
           path: reportes/
