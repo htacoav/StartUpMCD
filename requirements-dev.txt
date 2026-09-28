@@ -3,7 +3,7 @@
 # mas chico. Aca entran tambien las dependencias del pipeline de mantenimiento
 # porque hay pruebas que las necesitan.
 -r requirements-mantenimiento.txt
-pytest==8.4.2
+pytest==9.1.1
 httpx==0.28.1
-ruff==0.8.4
+ruff==0.16.9
 pyyaml==6.0.2      # las pruebas leen los workflows de GitHub Actions
