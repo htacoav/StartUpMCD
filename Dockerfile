@@ -1,5 +1,5 @@
 # Imagen slim: la maquina destino tiene 3.7 GB de RAM y poco margen.
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 
